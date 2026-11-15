@@ -1,0 +1,158 @@
+{
+  "scenario": "工业机器人具身数据采集编排中心",
+  "synthetic": true,
+  "records": [
+    {
+      "record_id": "capture_session-001",
+      "payload": {
+        "robot_id": "robot_id-0",
+        "part_family": "part_family-1",
+        "grip_angle": 15.8,
+        "deformation": 17.7,
+        "illumination": 19.6,
+        "dust_level": 21.5,
+        "camera_fps": 23.4,
+        "force_hz": 25.3,
+        "clock_skew_ms": 27.2,
+        "dropped_frames": 29.1,
+        "operator_id": "operator_id-0",
+        "consent_scope": "consent_scope-1"
+      },
+      "state": "planned",
+      "source": "synthetic-local-acceptance"
+    },
+    {
+      "record_id": "capture_session-002",
+      "payload": {
+        "robot_id": "robot_id-1",
+        "part_family": "part_family-2",
+        "grip_angle": 19.5,
+        "deformation": 21.4,
+        "illumination": 23.3,
+        "dust_level": 25.2,
+        "camera_fps": 27.1,
+        "force_hz": 29.0,
+        "clock_skew_ms": 30.9,
+        "dropped_frames": 32.8,
+        "operator_id": "operator_id-1",
+        "consent_scope": "consent_scope-2"
+      },
+      "state": "planned",
+      "source": "synthetic-local-acceptance"
+    },
+    {
+      "record_id": "capture_session-003",
+      "payload": {
+        "robot_id": "robot_id-2",
+        "part_family": "part_family-3",
+        "grip_angle": 23.2,
+        "deformation": 25.1,
+        "illumination": 27.0,
+        "dust_level": 28.9,
+        "camera_fps": 30.8,
+        "force_hz": 32.7,
+        "clock_skew_ms": 34.6,
+        "dropped_frames": 36.5,
+        "operator_id": "operator_id-2",
+        "consent_scope": "consent_scope-3"
+      },
+      "state": "planned",
+      "source": "synthetic-local-acceptance"
+    },
+    {
+      "record_id": "capture_session-004",
+      "payload": {
+        "robot_id": "robot_id-3",
+        "part_family": "part_family-4",
+        "grip_angle": 26.9,
+        "deformation": 28.8,
+        "illumination": 30.7,
+        "dust_level": 32.6,
+        "camera_fps": 34.5,
+        "force_hz": 36.4,
+        "clock_skew_ms": 38.3,
+        "dropped_frames": 40.2,
+        "operator_id": "operator_id-3",
+        "consent_scope": "consent_scope-4"
+      },
+      "state": "planned",
+      "source": "synthetic-local-acceptance"
+    },
+    {
+      "record_id": "capture_session-005",
+      "payload": {
+        "robot_id": "robot_id-4",
+        "part_family": "part_family-0",
+        "grip_angle": 30.6,
+        "deformation": 32.5,
+        "illumination": 34.4,
+        "dust_level": 36.3,
+        "camera_fps": 38.2,
+        "force_hz": 40.1,
+        "clock_skew_ms": 42.0,
+        "dropped_frames": 43.9,
+        "operator_id": "operator_id-4",
+        "consent_scope": "consent_scope-0"
+      },
+      "state": "planned",
+      "source": "synthetic-local-acceptance"
+    },
+    {
+      "record_id": "capture_session-006",
+      "payload": {
+        "robot_id": "robot_id-0",
+        "part_family": "part_family-1",
+        "grip_angle": 34.3,
+        "deformation": 36.2,
+        "illumination": 38.1,
+        "dust_level": 40.0,
+        "camera_fps": 41.9,
+        "force_hz": 43.8,
+        "clock_skew_ms": 45.7,
+        "dropped_frames": 47.6,
+        "operator_id": "operator_id-0",
+        "consent_scope": "consent_scope-1"
+      },
+      "state": "planned",
+      "source": "synthetic-local-acceptance"
+    },
+    {
+      "record_id": "capture_session-007",
+      "payload": {
+        "robot_id": "robot_id-1",
+        "part_family": "part_family-2",
+        "grip_angle": 38.0,
+        "deformation": 39.9,
+        "illumination": 41.8,
+        "dust_level": 43.7,
+        "camera_fps": 45.6,
+        "force_hz": 47.5,
+        "clock_skew_ms": 49.4,
+        "dropped_frames": 51.3,
+        "operator_id": "operator_id-1",
+        "consent_scope": "consent_scope-2"
+      },
+      "state": "planned",
+      "source": "synthetic-local-acceptance"
+    },
+    {
+      "record_id": "capture_session-008",
+      "payload": {
+        "robot_id": "robot_id-2",
+        "part_family": "part_family-3",
+        "grip_angle": 41.7,
+        "deformation": 43.6,
+        "illumination": 45.5,
+        "dust_level": 47.4,
+        "camera_fps": 49.3,
+        "force_hz": 51.2,
+        "clock_skew_ms": 53.1,
+        "dropped_frames": 55.0,
+        "operator_id": "operator_id-2",
+        "consent_scope": "consent_scope-3"
+      },
+      "state": "planned",
+      "source": "synthetic-local-acceptance"
+    }
+  ]
+}
