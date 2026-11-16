@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 
 from robot_corpus.session.contracts import Decision, DomainRecord, ContractError, canonical_json, stable_hash, utc_now
-from robot_corpus.delivery.sealed_dataset import prepare_datasets, seal_dataset, read_dataset
+from robot_corpus.delivery.sealed_dataset import prepare_datasets, review_dataset, seal_dataset, read_dataset
 
 
 SCHEMA = """
@@ -97,11 +97,31 @@ class Repository:
             sessions = [DomainRecord(row["record_id"], json.loads(row["payload_json"]),
                                      row["state"], row["version"], row["occurred_at"], row["source"])
                         for row in rows]
-            return seal_dataset(connection, dataset_id, sessions)
+            # Delivery gate: a session still in an open workflow state has not passed
+            # admission and cannot be delivered. Quarantined sessions may be attached
+            # for audit, but the manifest coverage only counts the usable remainder.
+            unsealed = [session.record_id for session in sessions
+                        if session.state not in ('curated', 'sealed', 'quarantined')]
+            if unsealed:
+                raise ContractError(
+                    "dataset includes sessions that have not passed admission: " + ", ".join(sorted(unsealed)))
+            manifest = seal_dataset(connection, dataset_id, sessions)
+            # The gate and the delivery list must point at exactly the same valid
+            # evidence: recompute usable coverage from the persisted manifest items.
+            usable_in_manifest = [item for item in manifest["items"] if not item["quarantined"]]
+            if manifest["usable_item_count"] != len(usable_in_manifest):
+                raise ContractError("delivery gate and manifest usable evidence disagree")
+            if manifest["coverage"]["usable_count"] != float(len(usable_in_manifest)):
+                raise ContractError("delivery gate and manifest coverage disagree")
+            return manifest
 
     def dataset_manifest(self, dataset_id: str) -> dict[str, Any]:
         with self.connect() as connection:
             return read_dataset(connection, dataset_id)
+
+    def review_dataset(self, dataset_id: str) -> dict[str, Any]:
+        with self.connect() as connection:
+            return review_dataset(connection, dataset_id, self.list_records())
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:

@@ -20,6 +20,14 @@ def parser() -> argparse.ArgumentParser:
     check.add_argument("--output", required=True)
     inspect = commands.add_parser("inspect")
     inspect.add_argument("--database", required=True)
+    coverage = commands.add_parser("coverage")
+    coverage.add_argument("--database", required=True)
+    reevaluate = commands.add_parser("reevaluate")
+    reevaluate.add_argument("--database", required=True)
+    reevaluate.add_argument("--session", action="append", dest="sessions")
+    review = commands.add_parser("review")
+    review.add_argument("--database", required=True)
+    review.add_argument("--dataset", required=True)
     return root
 
 
@@ -29,6 +37,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = run(args.fixture, args.database, args.output)
     elif args.command == "verify":
         result = verify(args.database, args.output)
+    elif args.command == "coverage":
+        result = Application(args.database).coverage_report()
+    elif args.command == "reevaluate":
+        result = Application(args.database).reevaluate(args.sessions)
+    elif args.command == "review":
+        result = Application(args.database).review_dataset(args.dataset)
     else:
         result = Application(args.database).inspect()
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))

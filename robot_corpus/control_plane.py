@@ -8,7 +8,7 @@ from robot_corpus.session.contracts import ContractError, Decision, DomainRecord
 from robot_corpus.lineage.evidence_store import Repository
 from robot_corpus.orchestration.session_lifecycle import advance_for_outcome, decide
 from robot_corpus.delivery.dataset_manifest import export_bundle, verify_bundle
-from robot_corpus.synchronization.timeline import derive_context
+from robot_corpus.synchronization.timeline import coverage_gap_report, coverage_lattice, derive_context, quarantine_reasons
 
 
 class Application:
@@ -70,6 +70,46 @@ class Application:
 
     def dataset_manifest(self, dataset_id: str) -> dict[str, Any]:
         return self.repository.dataset_manifest(dataset_id)
+
+    def review_dataset(self, dataset_id: str) -> dict[str, Any]:
+        """Read-only post-seal review opinion; the sealed manifest stays unchanged."""
+        return self.repository.review_dataset(dataset_id)
+
+    def coverage_report(self) -> dict[str, Any]:
+        """Current usable coverage plus per-cell gap and quarantine evidence."""
+        records = self.repository.list_records()
+        gaps = coverage_gap_report(records)
+        return {"coverage": coverage_lattice(records), "gaps": gaps,
+                "quarantine_evidence": [
+                    {"record_id": record.record_id, "state": record.state, "version": record.version,
+                     "reasons": list(quarantine_reasons(record))}
+                    for record in records if quarantine_reasons(record)]}
+
+    def reevaluate(self, record_ids: list[str] | None = None) -> dict[str, Any]:
+        """Re-run quality admission after corrections, then recompute affected coverage.
+
+        Correcting a fragment is not "lowering a total score": each affected session is
+        re-adjudicated against the authoritative alignment quarantine, its workflow state
+        advances or stays isolated, and the coverage gaps / unsealed sessions are
+        recomputed from the resulting usable evidence.
+        """
+        targets = record_ids or [record.record_id for record in self.repository.list_records()]
+        outcomes: dict[str, str] = {}
+        for record_id in targets:
+            stored = self.repository.get_record(record_id)
+            if stored is None:
+                raise ContractError(f"unknown capture session: {record_id}")
+            context = dict(self.context)
+            context.update(derive_context(stored, self.repository))
+            decision = decide(stored, context)
+            self.repository.save_decision(decision)
+            advanced = advance_for_outcome(stored, decision)
+            if advanced.fingerprint != stored.fingerprint:
+                self.repository.save_record(advanced, expected_version=stored.version)
+            outcomes[record_id] = decision.outcome
+        before = self.coverage_report()
+        return {"reevaluated": outcomes, "coverage": before["coverage"], "gaps": before["gaps"],
+                "quarantine_evidence": before["quarantine_evidence"]}
 
 
 def load_fixture(path: str | Path) -> dict[str, Any]:

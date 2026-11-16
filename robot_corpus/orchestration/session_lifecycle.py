@@ -6,9 +6,38 @@ from typing import Any, Callable, Mapping
 from robot_corpus.session.contracts import ContractError, Decision, DomainRecord, RuleResult, bounded
 from robot_corpus.curation.coverage_map import grouped_metrics, record_score
 from robot_corpus.synchronization.quality_gates import evaluate
+from robot_corpus.synchronization.timeline import alignment, quarantine_reasons
 
 STATES = ['planned', 'capturing', 'quarantined', 'curated', 'sealed', 'superseded']
 TRANSITIONS = {state: tuple(STATES[i + 1:i + 3]) for i, state in enumerate(STATES)}
+
+# States whose sessions are allowed to back usable condition evidence / delivery.
+USABLE_STATES = ('curated', 'sealed')
+# The only state an isolated session may move toward.
+QUARANTINE_STATE = 'quarantined'
+
+
+def is_quarantined(record: DomainRecord) -> bool:
+    """Single authoritative admission fact derived from the alignment evidence."""
+    return alignment(record).quarantine
+
+
+def admission_blockers(record: DomainRecord, target: str) -> tuple[str, ...]:
+    """Quarantine gate: isolated evidence cannot enter the usable pipeline.
+
+    A session whose clock alignment fails may only be held in / returned to the
+    quarantined state. Movement toward curated or sealed evidence is rejected even
+    when the synthetic scorecard happens to look acceptable.
+    """
+    if not is_quarantined(record):
+        return ()
+    if target == QUARANTINE_STATE:
+        return ()
+    if STATES.index(target) > STATES.index(QUARANTINE_STATE):
+        return tuple(f"quarantined session cannot advance to {target}: {reason}"
+                     for reason in quarantine_reasons(record)) or \
+               (f"quarantined session cannot advance to {target}",)
+    return ()
 
 @dataclass(frozen=True)
 class TransitionPlan:
@@ -35,6 +64,7 @@ def plan_transition(record: DomainRecord, target: str, context: Mapping[str, Any
     threshold = float(context.get('transition_threshold', 0.42))
     if scorecard['score'] < threshold:
         reasons.append('record score is below the transition threshold')
+    reasons.extend(admission_blockers(record, target))
     return TransitionPlan(record.state, target, structurally_allowed and not reasons, tuple(reasons or ['eligible']), scorecard['score'])
 
 def apply_transition(record: DomainRecord, target: str, context: Mapping[str, Any] | None = None) -> DomainRecord:
@@ -1139,22 +1169,47 @@ def decide(record: DomainRecord, context: Mapping[str, Any] | None = None) -> De
     scorecard = record_score(record, context)
     guards = guard_report(record, context)
     critical = sum(item.severity == 'critical' for item in rules)
-    if critical:
-        outcome = 'hold'
+    # The clock-alignment quarantine is the authoritative admission fact: an
+    # isolated session must never be approved, regardless of the synthetic score.
+    if is_quarantined(record):
+        outcome = 'quarantine'
     elif scorecard['score'] >= float(context.get('approve_threshold', 0.62)) and guards['passed'] >= guards['failed']:
         outcome = 'approve'
     elif scorecard['score'] >= float(context.get('review_threshold', 0.38)):
+        # The synthetic rule/guard scorecard feeds a manual-review track; it never
+        # overrides the authoritative alignment admission, so a non-quarantined
+        # session still advances through the workflow while flagged for review.
         outcome = 'review'
     else:
         outcome = 'reject'
-    reasons = (f"score={scorecard['score']:.6f}", f"critical={critical}",
-               f"guards={guards['passed']}/{guards['passed'] + guards['failed']}")
-    return Decision(record.record_id, outcome, scorecard['score'], reasons, rules, scorecard['metrics'])
+    reasons = [f"score={scorecard['score']:.6f}", f"critical={critical}",
+              f"guards={guards['passed']}/{guards['passed'] + guards['failed']}"]
+    if outcome == 'quarantine':
+        reasons.append(f"quarantine={';'.join(quarantine_reasons(record))}")
+    metrics = dict(scorecard['metrics'])
+    metrics['alignment_quarantine'] = 1.0 if is_quarantined(record) else 0.0
+    metrics['alignment_quality'] = alignment(record).quality
+    return Decision(record.record_id, outcome, scorecard['score'], tuple(reasons), rules, metrics)
 
 def advance_for_outcome(record: DomainRecord, decision: Decision) -> DomainRecord:
     current = STATES.index(record.state)
-    if decision.outcome == 'approve' and current + 1 < len(STATES):
-        return record.with_state(STATES[current + 1])
-    if decision.outcome == 'hold' and STATES[-1] != record.state:
-        return record.with_state(STATES[-1])
+    if decision.outcome == 'quarantine':
+        target = STATES.index(QUARANTINE_STATE)
+        # Only move toward isolation when the alignment evidence actually demands it.
+        if is_quarantined(record) and target != current and target in (current + 1, current + 2):
+            return record.with_state(QUARANTINE_STATE)
+        return record
+    # A corrected session whose alignment evidence now passes is released from
+    # quarantine into the curated stage, regardless of synthetic-scorecard noise.
+    if record.state == QUARANTINE_STATE and not is_quarantined(record):
+        return record.with_state('curated')
+    if decision.outcome in ('approve', 'review') and current + 1 < len(STATES):
+        # Review-flagged sessions still move forward along the usable pipeline; the
+        # scorecard concern is carried by the stored decision/evidence, not by a
+        # terminal-state jump. A usable session never crosses into quarantine.
+        next_state = STATES[current + 1]
+        if next_state == QUARANTINE_STATE:
+            next_state = STATES[current + 2] if current + 2 < len(STATES) else next_state
+        return record.with_state(next_state)
+    # reject keeps the session in place rather than forcing a terminal state.
     return record

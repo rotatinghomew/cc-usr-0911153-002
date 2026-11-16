@@ -125,7 +125,7 @@ class WorkflowTests(unittest.TestCase):
         decision = decide(self.record)
         self.assertEqual(decision.record_id, self.record.record_id)
         self.assertGreater(len(decision.rule_results), 100)
-        self.assertEqual(set(decision.metrics), {'dataset_novelty', 'reuse_readiness', 'quarantine_pressure', 'condition_coverage', 'sequence_integrity', 'operator_balance', 'sensor_alignment', 'lineage_completeness'})
+        self.assertEqual(set(decision.metrics), {'dataset_novelty', 'reuse_readiness', 'quarantine_pressure', 'condition_coverage', 'sequence_integrity', 'operator_balance', 'sensor_alignment', 'lineage_completeness', 'alignment_quarantine', 'alignment_quality'})
 
     def test_guard_report_counts_every_guard(self):
         result = guard_report(self.record)
