@@ -65,6 +65,12 @@ class Application:
         return {"snapshot": self.repository.snapshot(), "records": [record.__dict__ for record in self.repository.list_records()],
                 "decisions": self.repository.decision_rows()}
 
+    def publish_dataset(self, dataset_id: str, session_ids: list[str]) -> dict[str, Any]:
+        return self.repository.publish_dataset(dataset_id, session_ids)
+
+    def dataset_manifest(self, dataset_id: str) -> dict[str, Any]:
+        return self.repository.dataset_manifest(dataset_id)
+
 
 def load_fixture(path: str | Path) -> dict[str, Any]:
     try:

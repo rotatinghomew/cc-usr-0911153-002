@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 
 from robot_corpus.session.contracts import Decision, DomainRecord, ContractError, canonical_json, stable_hash, utc_now
+from robot_corpus.delivery.sealed_dataset import prepare_datasets, seal_dataset, read_dataset
 
 
 SCHEMA = """
@@ -83,6 +84,24 @@ class Repository:
     def initialize(self) -> None:
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            prepare_datasets(connection)
+
+    def publish_dataset(self, dataset_id: str, session_ids: list[str]) -> dict[str, Any]:
+        if not session_ids or len(session_ids) != len(set(session_ids)):
+            raise ContractError("dataset needs distinct session identifiers")
+        with self.transaction() as connection:
+            rows = [connection.execute("SELECT * FROM records WHERE record_id=?", (session_id,)).fetchone()
+                    for session_id in session_ids]
+            if any(row is None for row in rows):
+                raise ContractError("dataset includes an unknown capture session")
+            sessions = [DomainRecord(row["record_id"], json.loads(row["payload_json"]),
+                                     row["state"], row["version"], row["occurred_at"], row["source"])
+                        for row in rows]
+            return seal_dataset(connection, dataset_id, sessions)
+
+    def dataset_manifest(self, dataset_id: str) -> dict[str, Any]:
+        with self.connect() as connection:
+            return read_dataset(connection, dataset_id)
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
