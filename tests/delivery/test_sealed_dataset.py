@@ -6,6 +6,7 @@ from pathlib import Path
 
 from robot_corpus.control_plane import Application
 from robot_corpus.session.contracts import ContractError, DomainRecord
+from robot_corpus.synchronization.timeline import coverage_lattice
 
 
 class SealedDatasetTests(unittest.TestCase):
@@ -21,11 +22,11 @@ class SealedDatasetTests(unittest.TestCase):
         self.application.repository.save_record(self.good)
         self.application.repository.save_record(self.bad)
 
-    def test_seal_preserves_quality_provenance_without_changing_current_coverage(self):
+    def test_seal_preserves_quality_provenance_and_coverage_snapshot(self):
         manifest = self.application.publish_dataset("batch-a", ["isolated", "healthy"])
         self.assertEqual(manifest["item_count"], 2)
         self.assertEqual([item["quarantined"] for item in manifest["items"]], [False, True])
-        self.assertEqual(manifest["coverage"]["coverage"], .5)
+        self.assertEqual(manifest["coverage"], coverage_lattice([self.good, self.bad]))
         self.assertEqual(self.application.publish_dataset("batch-a", ["healthy", "isolated"]), manifest)
 
     def test_seal_immutability_and_corrected_quality_history(self):
